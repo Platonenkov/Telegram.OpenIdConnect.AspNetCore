@@ -47,7 +47,7 @@ builder.Services.AddTelegramOidc(o =>
 {
     o.ClientId = builder.Configuration["TelegramOidc:ClientId"] ?? "";
     o.ClientSecret = builder.Configuration["TelegramOidc:ClientSecret"] ?? "";
-    o.DefaultReturnUrl = "/admin";
+    o.DefaultReturnUrl = "/dashboard";
 });
 
 builder.Services.AddScoped<ITelegramSignInGate, MyGate>();        // required
@@ -55,7 +55,7 @@ builder.Services.AddScoped<ITelegramSignInAuditSink, MySink>();   // optional
 
 // The library does authentication; authorization is yours. Register your own policy:
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("Admin", p => p.RequireRole("Admin"));
+    .AddPolicy("Staff", p => p.RequireRole("Staff"));
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -81,7 +81,7 @@ public sealed class MyGate : ITelegramSignInGate
 {
     public ValueTask<TelegramSignInDecision> DecideAsync(long telegramUserId, CancellationToken ct) =>
         ValueTask.FromResult(telegramUserId == 12345678L
-            ? new TelegramSignInDecision(true, [new Claim(ClaimTypes.Role, "Admin")])
+            ? new TelegramSignInDecision(true, [new Claim(ClaimTypes.Role, "Staff")])
             : new TelegramSignInDecision(false));
 }
 ```
@@ -101,7 +101,7 @@ plus the callback path itself is intercepted by the OIDC handler:
 |---|---|---|
 | `GET` | `{CallbackPath}/challenge?returnUrl=...` | Starts the sign-in flow — redirects to Telegram. Returns `503` if unconfigured (see Gotchas). |
 | `POST` | `{CallbackPath}/logout` | Signs the local cookie out. Requires a valid antiforgery token; otherwise `400`. |
-| any | `{CallbackPath}` | The OIDC authorization-code callback, handled internally by the OpenID Connect handler — not something you call directly. |
+| `GET` | `{CallbackPath}` | The OIDC authorization-code callback, handled internally by the OpenID Connect handler — not something you call directly. |
 
 ## Login page
 
@@ -109,13 +109,13 @@ This package ships no UI. Build whatever login page fits your app and point it a
 endpoint:
 
 ```html
-<a href="/signin-telegram/challenge?returnUrl=/admin">Sign in with Telegram</a>
+<a href="/signin-telegram/challenge?returnUrl=/dashboard">Sign in with Telegram</a>
 ```
 
 Handle the two query-string outcomes the library redirects back with on failure:
 
 - `?denied=1` — the sign-in gate rejected the user (`AccessDeniedPath`, default
-  `/admin/login?denied=1`).
+  `/login?denied=1`).
 - `?error=1` — the OIDC flow itself failed (missing `id` claim, remote failure, access-denied
   response from Telegram) and got redirected to `LoginPath + "?error=1"`.
 
@@ -129,9 +129,9 @@ All properties of `TelegramOidcOptions`, configured via the `AddTelegramOidc(o =
 | `ClientSecret` | `""` | Telegram Bot token (OIDC `client_secret`). Empty means unconfigured. |
 | `MetadataAddress` | `https://oauth.telegram.org/.well-known/openid-configuration` | OIDC discovery document address. |
 | `CallbackPath` | `/signin-telegram` | Path the OIDC handler intercepts for the authorization-code callback. Also the base path for `/challenge` and `/logout`. |
-| `LoginPath` | `/admin/login` | Path the cookie handler redirects to when authentication is required. |
-| `AccessDeniedPath` | `/admin/login?denied=1` | Path the cookie handler redirects to when the sign-in gate denies access. |
-| `CookieScheme` | `TelegramAdminCookie` | Name of the cookie authentication scheme this library registers. |
+| `LoginPath` | `/login` | Path the cookie handler redirects to when authentication is required. |
+| `AccessDeniedPath` | `/login?denied=1` | Where a denied sign-in is redirected (issued by the sign-in flow; also used as the cookie scheme's `AccessDeniedPath` for authorization denials). |
+| `CookieScheme` | `TelegramCookie` | Name of the cookie authentication scheme this library registers. |
 | `OidcScheme` | `TelegramOidc` | Name of the OpenID Connect authentication scheme this library registers. |
 | `CookieTtlHours` | `12` | Sliding expiration window, in hours, for the sign-in cookie. |
 | `DefaultReturnUrl` | `/` | Landing page after sign-in when the challenge carries no (safe) `returnUrl`. |
@@ -159,7 +159,7 @@ Telegram.
   resolver when a reverse proxy in front of you sets that header unconditionally — otherwise it's
   attacker-controlled and any client can stamp an arbitrary IP into your audit trail.
 - **Unconfigured is not broken.** Leave `ClientId`/`ClientSecret` empty and the app still starts
-  and stays healthy; only `{CallbackPath}/challenge` returns `503`. Handy when the admin panel is
+  and stays healthy; only `{CallbackPath}/challenge` returns `503`. Handy when sign-in is
   optional in some environments.
 - **`AddAuthorization()` is on you, and it's required if you call `UseAuthorization()`.** This
   library registers authentication only — no `services.AddAuthorization()`, no policy. If your

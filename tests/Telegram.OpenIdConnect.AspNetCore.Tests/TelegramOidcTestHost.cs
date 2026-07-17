@@ -26,7 +26,7 @@ namespace Telegram.OpenIdConnect.AspNetCore.Tests;
 /// discovery is pinned to a hand-built <see cref="OpenIdConnectConfiguration"/> (no MetadataAddress,
 /// so the handler never reaches the network), the code-&gt;token backchannel is a substitute
 /// <see cref="HttpMessageHandler"/>, and id_tokens are self-signed with a key only this class knows.
-/// Mirrors the machinery in StaticBit.Auth.Tests/AdminOidcGateTests.cs, minus the database: the
+/// Mirrors the end-to-end OIDC-stubbing approach used to validate this flow, minus the database: the
 /// sign-in gate and audit sink are in-memory fakes supplied by the caller, so no Docker is required.
 /// </summary>
 public sealed class TelegramOidcTestHost : IDisposable
@@ -230,7 +230,7 @@ public sealed class TelegramOidcTestHost : IDisposable
         using HttpResponseMessage callback = await client.SendAsync(callbackRequest).ConfigureAwait(false);
         if (callback.StatusCode != HttpStatusCode.Redirect ||
             !callback.Headers.TryGetValues("Set-Cookie", out IEnumerable<string>? setCookies) ||
-            !setCookies.Any(c => c.Contains("TelegramAdminCookie", StringComparison.Ordinal)))
+            !setCookies.Any(c => c.Contains("TelegramCookie", StringComparison.Ordinal)))
         {
             throw new InvalidOperationException(
                 $"Expected sign-in to succeed and set the auth cookie, got {callback.StatusCode}.");

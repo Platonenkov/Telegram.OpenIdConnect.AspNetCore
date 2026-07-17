@@ -18,13 +18,16 @@ public sealed class TelegramOidcOptions
     public string CallbackPath { get; set; } = "/signin-telegram";
 
     /// <summary>Path the cookie handler redirects to when authentication is required.</summary>
-    public string LoginPath { get; set; } = "/admin/login";
+    public string LoginPath { get; set; } = "/login";
 
-    /// <summary>Path the cookie handler redirects to when the sign-in gate denies access.</summary>
-    public string AccessDeniedPath { get; set; } = "/admin/login?denied=1";
+    /// <summary>
+    /// Where a denied sign-in is redirected (issued by the sign-in flow; also used as the cookie
+    /// scheme's <c>AccessDeniedPath</c> for authorization denials).
+    /// </summary>
+    public string AccessDeniedPath { get; set; } = "/login?denied=1";
 
     /// <summary>Name of the cookie authentication scheme registered by this library.</summary>
-    public string CookieScheme { get; set; } = "TelegramAdminCookie";
+    public string CookieScheme { get; set; } = "TelegramCookie";
 
     /// <summary>Name of the OpenID Connect authentication scheme registered by this library.</summary>
     public string OidcScheme { get; set; } = "TelegramOidc";

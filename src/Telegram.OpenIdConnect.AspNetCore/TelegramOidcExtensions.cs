@@ -71,7 +71,7 @@ public static class TelegramOidcExtensions
                 };
                 oidc.MetadataAddress = options.MetadataAddress;
                 // Placeholder-on-empty so OpenIdConnectOptions.Validate() always passes and the core
-                // auth service stays healthy even when admin OIDC is unconfigured. The challenge
+                // auth service stays healthy even when Telegram OIDC is unconfigured. The challenge
                 // endpoint gates on the effective ClientId and returns 503 while the placeholder is set.
                 oidc.ClientId = string.IsNullOrWhiteSpace(options.ClientId) ? UnconfiguredClientId : options.ClientId;
                 oidc.ClientSecret = string.IsNullOrWhiteSpace(options.ClientSecret) ? UnconfiguredClientSecret : options.ClientSecret;
@@ -172,7 +172,7 @@ public static class TelegramOidcExtensions
 
         identity.AddClaim(new Claim("telegram_user_id", telegramUserId.ToString()));
 
-        logger.LogInformation("Admin sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
+        logger.LogInformation("Sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
             telegramUserId, username, clientIp);
         await RecordAsync(http, new TelegramSignInAuditEvent(
             TelegramSignInOutcome.Success, telegramUserId, username, displayName, pictureUrl, clientIp, null)).ConfigureAwait(false);
@@ -257,7 +257,7 @@ public static class TelegramOidcExtensions
         catch (Exception ex)
         {
             ILogger logger = http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("TelegramOidc");
-            logger.LogWarning(ex, "Admin login audit sink failed to record {Outcome}.", e.Outcome);
+            logger.LogWarning(ex, "Sign-in audit sink failed to record {Outcome}.", e.Outcome);
         }
     }
 }

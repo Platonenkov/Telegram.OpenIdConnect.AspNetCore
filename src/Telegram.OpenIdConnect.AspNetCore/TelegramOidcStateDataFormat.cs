@@ -14,7 +14,7 @@ namespace Telegram.OpenIdConnect.AspNetCore;
 /// Telegram's authorization endpoint (<c>https://oauth.telegram.org/auth</c>) hard-rejects any
 /// <c>state</c> longer than 256 characters with the plain-text response <c>state too long</c>. ASP.NET
 /// Core's default <see cref="PropertiesDataFormat"/> emits the protected payload inline, which for this
-/// host is ~500 chars — architecturally over Telegram's limit, so admin login was broken end-to-end.
+/// host is ~500 chars — architecturally over Telegram's limit, so sign-in was broken end-to-end.
 /// The id-plus-cookie indirection keeps the protected payload intact (it is still DataProtection-signed
 /// and still validated on the callback) while putting a fixed, tiny value on the wire.
 /// </para>

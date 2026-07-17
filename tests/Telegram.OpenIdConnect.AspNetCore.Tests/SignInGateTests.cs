@@ -27,7 +27,7 @@ public sealed class SignInGateTests
 
         using HttpResponseMessage response = await host.SignInAsync(AllowedId.ToString());
 
-        Assert.Contains(response.Headers.GetValues("Set-Cookie"), c => c.Contains("TelegramAdminCookie", StringComparison.Ordinal));
+        Assert.Contains(response.Headers.GetValues("Set-Cookie"), c => c.Contains("TelegramCookie", StringComparison.Ordinal));
         TelegramSignInAuditEvent e = Assert.Single(sink.Events);
         Assert.Equal(TelegramSignInOutcome.Success, e.Outcome);
         Assert.Equal(AllowedId, e.TelegramUserId);
@@ -42,7 +42,7 @@ public sealed class SignInGateTests
         using HttpResponseMessage response = await host.SignInAsync(UnknownId.ToString());
 
         Assert.False(response.Headers.Contains("Set-Cookie") &&
-            response.Headers.GetValues("Set-Cookie").Any(c => c.Contains("TelegramAdminCookie", StringComparison.Ordinal)));
+            response.Headers.GetValues("Set-Cookie").Any(c => c.Contains("TelegramCookie", StringComparison.Ordinal)));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Contains("denied=1", response.Headers.Location!.ToString(), StringComparison.Ordinal);
         TelegramSignInAuditEvent e = Assert.Single(sink.Events);

@@ -27,7 +27,7 @@ public static class TelegramOidcEndpoints
         {
             ILogger startupLogger = endpoints.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("TelegramOidc");
             startupLogger.LogWarning(
-                "Telegram OIDC admin is not configured; the admin panel will be unreachable until TelegramOidc:ClientId/ClientSecret are set.");
+                "Telegram OIDC is not configured; sign-in will be unreachable until TelegramOidc:ClientId/ClientSecret are set.");
         }
 
         endpoints.MapGet(basePath + "/challenge", (HttpContext http, IOptionsMonitor<OpenIdConnectOptions> oidcMonitor, string? returnUrl) =>
@@ -41,9 +41,9 @@ public static class TelegramOidcEndpoints
             {
                 ILogger logger = http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("TelegramOidc");
                 logger.LogWarning(
-                    "Telegram OIDC admin login attempted but not configured (ClientId missing: {ClientIdMissing}, ClientSecret missing: {ClientSecretMissing}).",
+                    "Telegram OIDC sign-in attempted but not configured (ClientId missing: {ClientIdMissing}, ClientSecret missing: {ClientSecretMissing}).",
                     clientIdMissing, clientSecretMissing);
-                return Results.Text("Telegram OIDC admin login is not configured.", statusCode: StatusCodes.Status503ServiceUnavailable);
+                return Results.Text("Telegram OIDC sign-in is not configured.", statusCode: StatusCodes.Status503ServiceUnavailable);
             }
 
             string target = SafeLocalReturnUrl(returnUrl, options.DefaultReturnUrl);

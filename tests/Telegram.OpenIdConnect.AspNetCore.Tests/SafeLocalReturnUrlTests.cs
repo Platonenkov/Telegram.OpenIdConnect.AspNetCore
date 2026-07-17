@@ -5,8 +5,8 @@ namespace Telegram.OpenIdConnect.AspNetCore.Tests;
 public sealed class SafeLocalReturnUrlTests
 {
     [Theory]
-    [InlineData("/admin/installs", "/admin/installs")]
-    [InlineData("/admin/login-audit?page=2", "/admin/login-audit?page=2")]
+    [InlineData("/dashboard/installs", "/dashboard/installs")]
+    [InlineData("/dashboard/history?page=2", "/dashboard/history?page=2")]
     [InlineData(null, "/fallback")]
     [InlineData("", "/fallback")]
     [InlineData("https://evil.com", "/fallback")]

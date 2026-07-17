@@ -17,9 +17,9 @@ public sealed class TelegramOidcOptionsTests
         Assert.Equal(string.Empty, o.ClientSecret);
         Assert.Equal("https://oauth.telegram.org/.well-known/openid-configuration", o.MetadataAddress);
         Assert.Equal("/signin-telegram", o.CallbackPath);
-        Assert.Equal("/admin/login", o.LoginPath);
-        Assert.Equal("/admin/login?denied=1", o.AccessDeniedPath);
-        Assert.Equal("TelegramAdminCookie", o.CookieScheme);
+        Assert.Equal("/login", o.LoginPath);
+        Assert.Equal("/login?denied=1", o.AccessDeniedPath);
+        Assert.Equal("TelegramCookie", o.CookieScheme);
         Assert.Equal("TelegramOidc", o.OidcScheme);
         Assert.Equal(12, o.CookieTtlHours);
         Assert.Equal("/", o.DefaultReturnUrl);

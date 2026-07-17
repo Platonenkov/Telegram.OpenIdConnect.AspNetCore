@@ -13,7 +13,7 @@ public enum TelegramSignInOutcome
     Failure,
 }
 
-/// <summary>One admin sign-in attempt. Profile fields are null when absent or on remote failure.</summary>
+/// <summary>One sign-in attempt. Profile fields are null when absent or on remote failure.</summary>
 public sealed record TelegramSignInAuditEvent(
     TelegramSignInOutcome Outcome,
     long? TelegramUserId,
