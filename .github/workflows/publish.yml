@@ -16,6 +16,7 @@ on:
 
 jobs:
   publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,7 +48,7 @@ jobs:
           # Informational only: --skip-duplicate would swallow an already-published version in
           # silence, and a green run that shipped nothing is the failure mode we want visible.
           PUBLISHED="$(curl -s https://api.nuget.org/v3-flatcontainer/telegram.openidconnect.aspnetcore/index.json \
-            | grep -o "\"$VERSION\"" || true)"
+            | grep -oF "\"$VERSION\"" || true)"
           if [ -n "$PUBLISHED" ]; then
             echo "::warning::Version $VERSION is already on nuget.org — this run will publish nothing. Did you forget to bump <Version> in Directory.Build.props?"
           else
