@@ -1,0 +1,101 @@
+# Publishes the package on every push to main (merge = release) and on manual dispatch.
+#
+# The version comes from <Version> in Directory.Build.props — that file is the single source of
+# truth. Both pushes use --skip-duplicate, which is REQUIRED here: with two feeds, a push that
+# succeeds on nuget.org and fails on GitHub Packages would otherwise be unrecoverable, because a
+# retry hits a 409 on nuget.org and a published NuGet version can never be replaced.
+#
+# The flip side of --skip-duplicate is silence: forget to bump <Version> and the run goes green
+# having published nothing. The "Check whether this version is new" step turns that into a warning.
+name: Publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Read version from Directory.Build.props
+        id: version
+        run: |
+          VERSION="$(grep -oPm1 '(?<=<Version>)[^<]+' Directory.Build.props)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not read <Version> from Directory.Build.props"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Check whether this version is new
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Informational only: --skip-duplicate would swallow an already-published version in
+          # silence, and a green run that shipped nothing is the failure mode we want visible.
+          PUBLISHED="$(curl -s https://api.nuget.org/v3-flatcontainer/telegram.openidconnect.aspnetcore/index.json \
+            | grep -oF "\"$VERSION\"" || true)"
+          if [ -n "$PUBLISHED" ]; then
+            echo "::warning::Version $VERSION is already on nuget.org — this run will publish nothing. Did you forget to bump <Version> in Directory.Build.props?"
+          else
+            echo "Version $VERSION is new."
+          fi
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Pack
+        run: dotnet pack src/Telegram.OpenIdConnect.AspNetCore -c Release --no-build -o "${{ runner.temp }}/nupkgs"
+
+      - name: Push to nuget.org (skip duplicates)
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::NUGET_API_KEY secret is not set. Add it in the repository settings."
+            exit 1
+          fi
+          dotnet nuget push "${{ runner.temp }}/nupkgs/*.nupkg" \
+            --source "https://api.nuget.org/v3/index.json" \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+      - name: Push to GitHub Packages (skip duplicates)
+        run: |
+          dotnet nuget push "${{ runner.temp }}/nupkgs/*.nupkg" \
+            --source "https://nuget.pkg.github.com/Platonenkov/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Publish"
+            echo ""
+            echo "Version \`${{ steps.version.outputs.version }}\` (from Directory.Build.props)."
+            echo ""
+            echo "Feeds: nuget.org and GitHub Packages, both with --skip-duplicate."
+            echo ""
+            echo "If a warning above says the version already exists, nothing was published."
+          } >> "$GITHUB_STEP_SUMMARY"

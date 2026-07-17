@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
@@ -18,6 +19,11 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Telegram.OpenIdConnect.AspNetCore/Telegram.OpenIdConnect.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Telegram.OpenIdConnect.AspNetCore" />
+    <Using Include="Xunit" />
   </ItemGroup>
 
 </Project>
