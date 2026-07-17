@@ -7,6 +7,6 @@ public sealed class FakeSignInGate : ITelegramSignInGate
 
     public FakeSignInGate(params long[] allowed) => _allowed = [.. allowed];
 
-    public ValueTask<bool> IsAllowedAsync(long telegramUserId, CancellationToken ct) =>
-        ValueTask.FromResult(_allowed.Contains(telegramUserId));
+    public ValueTask<TelegramSignInDecision> DecideAsync(long telegramUserId, CancellationToken ct) =>
+        ValueTask.FromResult(new TelegramSignInDecision(_allowed.Contains(telegramUserId)));
 }

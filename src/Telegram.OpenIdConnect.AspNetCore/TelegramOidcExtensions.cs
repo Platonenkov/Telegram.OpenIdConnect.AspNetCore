@@ -115,9 +115,6 @@ public static class TelegramOidcExtensions
                 oidc.StateDataFormat = new TelegramOidcStateDataFormat(inner, httpContextAccessor);
             });
 
-        services.AddAuthorizationBuilder()
-            .AddPolicy(options.PolicyName, policy => policy.RequireRole(options.RoleName));
-
         return services;
     }
 
@@ -149,22 +146,30 @@ public static class TelegramOidcExtensions
             return;
         }
 
-        ITelegramSignInGate allowlist = http.RequestServices.GetRequiredService<ITelegramSignInGate>();
-        bool allowed = await allowlist.IsAllowedAsync(telegramUserId, http.RequestAborted).ConfigureAwait(false);
+        ITelegramSignInGate gate = http.RequestServices.GetRequiredService<ITelegramSignInGate>();
+        TelegramSignInDecision decision = await gate.DecideAsync(telegramUserId, http.RequestAborted).ConfigureAwait(false);
 
-        if (!allowed)
+        if (!decision.Allowed)
         {
-            logger.LogWarning("Denied admin sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
+            logger.LogWarning("Denied sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
                 telegramUserId, username, clientIp);
             await RecordAsync(http, new TelegramSignInAuditEvent(
-                TelegramSignInOutcome.Denied, telegramUserId, username, displayName, pictureUrl, clientIp, "not on allow-list")).ConfigureAwait(false);
+                TelegramSignInOutcome.Denied, telegramUserId, username, displayName, pictureUrl, clientIp, "rejected by gate")).ConfigureAwait(false);
             ctx.Response.Redirect(options.AccessDeniedPath);
             ctx.HandleResponse();
             return;
         }
 
         ClaimsIdentity identity = (ClaimsIdentity)ctx.Principal!.Identity!;
-        identity.AddClaim(new Claim(ClaimTypes.Role, options.RoleName));
+
+        if (decision.Claims is not null)
+        {
+            foreach (Claim claim in decision.Claims)
+            {
+                identity.AddClaim(claim);
+            }
+        }
+
         identity.AddClaim(new Claim("telegram_user_id", telegramUserId.ToString()));
 
         logger.LogInformation("Admin sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",

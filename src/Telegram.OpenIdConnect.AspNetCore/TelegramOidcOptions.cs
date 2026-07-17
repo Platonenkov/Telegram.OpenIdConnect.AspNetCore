@@ -29,12 +29,6 @@ public sealed class TelegramOidcOptions
     /// <summary>Name of the OpenID Connect authentication scheme registered by this library.</summary>
     public string OidcScheme { get; set; } = "TelegramOidc";
 
-    /// <summary>Name of the authorization policy registered by this library.</summary>
-    public string PolicyName { get; set; } = "TelegramAdmin";
-
-    /// <summary>Role claim value granted to a successfully signed-in Telegram user.</summary>
-    public string RoleName { get; set; } = "TelegramAdmin";
-
     /// <summary>Sliding expiration window, in hours, for the sign-in cookie.</summary>
     public int CookieTtlHours { get; set; } = 12;
 

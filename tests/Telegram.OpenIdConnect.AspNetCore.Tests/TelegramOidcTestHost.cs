@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Net;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
@@ -81,6 +83,12 @@ public sealed class TelegramOidcTestHost : IDisposable
                     services.AddLogging();
                     services.AddDataProtection();
                     services.AddAntiforgery();
+                    // The library no longer registers authorization (that is now the host's job, since
+                    // only the host knows what policy — if any — its gate's claims should back). This
+                    // test host stands in for that host, so it registers authorization itself; app.
+                    // UseAuthorization() below needs the services regardless of whether any policy is
+                    // actually evaluated.
+                    services.AddAuthorization();
 
                     services.AddSingleton(gate);
                     if (sink is not null)
@@ -132,7 +140,15 @@ public sealed class TelegramOidcTestHost : IDisposable
                     app.UseRouting();
                     app.UseAuthentication();
                     app.UseAuthorization();
-                    app.UseEndpoints(endpoints => endpoints.MapTelegramOidcEndpoints());
+                    app.UseEndpoints(endpoints =>
+                    {
+                        endpoints.MapTelegramOidcEndpoints();
+                        // Test-only introspection endpoint: exposes the signed-in principal's claims
+                        // as JSON so SignInAndReadPrincipalAsync can assert on them. Not part of the
+                        // library's own surface.
+                        endpoints.MapGet("/whoami", (HttpContext http) =>
+                            Results.Json(http.User.Claims.Select(c => new { c.Type, c.Value })));
+                    });
                 });
             });
 
@@ -180,6 +196,68 @@ public sealed class TelegramOidcTestHost : IDisposable
             $"/signin-telegram?code=test-auth-code&state={Uri.EscapeDataString(state)}");
         ApplyHeaders(callbackRequest, extraHeaders);
         return await client.SendAsync(callbackRequest).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Drives the same challenge -> Telegram -> callback flow as <see cref="SignInAsync"/>, then reads
+    /// the resulting principal back via the test-only <c>/whoami</c> endpoint on the SAME client, so
+    /// the sign-in cookie set on the callback response is relayed. Throws if the callback did not
+    /// result in an authenticated session (e.g. the gate denied the sign-in).
+    /// </summary>
+    public async Task<ClaimsPrincipal> SignInAndReadPrincipalAsync(
+        string idClaim,
+        string subClaim = "telegram-oidc-subject")
+    {
+        HttpClient client = CreateClient(allowAutoRedirect: false);
+
+        using HttpRequestMessage challengeRequest = new(HttpMethod.Get, "/signin-telegram/challenge?returnUrl=/");
+        using HttpResponseMessage challenge = await client.SendAsync(challengeRequest).ConfigureAwait(false);
+        if (challenge.StatusCode != HttpStatusCode.Redirect || challenge.Headers.Location is null)
+        {
+            throw new InvalidOperationException(
+                $"Expected a redirect to Telegram from the challenge endpoint, got {challenge.StatusCode}.");
+        }
+
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(challenge.Headers.Location.Query);
+        string state = query["state"].ToString();
+        string nonce = query["nonce"].ToString();
+
+        _stubIdToken = MintIdToken(subClaim, idClaim, nonce);
+
+        using HttpRequestMessage callbackRequest = new(
+            HttpMethod.Get,
+            $"/signin-telegram?code=test-auth-code&state={Uri.EscapeDataString(state)}");
+        using HttpResponseMessage callback = await client.SendAsync(callbackRequest).ConfigureAwait(false);
+        if (callback.StatusCode != HttpStatusCode.Redirect ||
+            !callback.Headers.TryGetValues("Set-Cookie", out IEnumerable<string>? setCookies) ||
+            !setCookies.Any(c => c.Contains("TelegramAdminCookie", StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                $"Expected sign-in to succeed and set the auth cookie, got {callback.StatusCode}.");
+        }
+
+        using HttpRequestMessage whoamiRequest = new(HttpMethod.Get, "/whoami");
+        using HttpResponseMessage whoamiResponse = await client.SendAsync(whoamiRequest).ConfigureAwait(false);
+        whoamiResponse.EnsureSuccessStatusCode();
+
+        string json = await whoamiResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+        return ParsePrincipal(json);
+    }
+
+    /// <summary>Parses the <c>/whoami</c> JSON payload (an array of {type, value}) into a principal.</summary>
+    private static ClaimsPrincipal ParsePrincipal(string json)
+    {
+        using JsonDocument document = JsonDocument.Parse(json);
+        List<Claim> claims = [];
+        foreach (JsonElement element in document.RootElement.EnumerateArray())
+        {
+            string type = element.GetProperty("type").GetString()!;
+            string value = element.GetProperty("value").GetString()!;
+            claims.Add(new Claim(type, value));
+        }
+
+        ClaimsIdentity identity = new(claims, authenticationType: "TestAuth");
+        return new ClaimsPrincipal(identity);
     }
 
     public void Dispose()
