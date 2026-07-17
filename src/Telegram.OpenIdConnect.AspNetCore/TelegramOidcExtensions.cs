@@ -137,7 +137,7 @@ public static class TelegramOidcExtensions
         string? username = ctx.Principal?.FindFirst("preferred_username")?.Value;
         string? displayName = ctx.Principal?.FindFirst("name")?.Value;
         string? pictureUrl = ctx.Principal?.FindFirst("picture")?.Value;
-        string? clientIp = ResolveClientIp(http);
+        string? clientIp = ResolveClientIp(http, options);
 
         if (!long.TryParse(id, out long telegramUserId))
         {
@@ -178,7 +178,7 @@ public static class TelegramOidcExtensions
         TelegramOidcOptions options)
     {
         HttpContext http = ctx.HttpContext;
-        string? clientIp = ResolveClientIp(http);
+        string? clientIp = ResolveClientIp(http, options);
 
         await RecordAsync(http, new TelegramSignInAuditEvent(
             TelegramSignInOutcome.Failure, null, null, null, null, clientIp, "access_denied")).ConfigureAwait(false);
@@ -194,7 +194,7 @@ public static class TelegramOidcExtensions
         HttpContext http = ctx.HttpContext;
         ILogger logger = http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("TelegramOidc");
         string? reason = ctx.Failure?.Message;
-        string? clientIp = ResolveClientIp(http);
+        string? clientIp = ResolveClientIp(http, options);
 
         logger.LogWarning(ctx.Failure, "Telegram OIDC remote failure: {Reason}", reason);
         await RecordAsync(http, new TelegramSignInAuditEvent(
@@ -205,29 +205,24 @@ public static class TelegramOidcExtensions
     }
 
     /// <summary>
-    /// Resolves the client IP for the audit trail, preferring the unforgeable <c>X-Real-IP</c> the
-    /// trusted nginx reverse proxy sets unconditionally to the socket peer. Mirrors the auth host's
-    /// <c>GetClientIpPartitionKey</c> / <c>AbuseFilterMiddleware.ResolveClientIp</c>: because the
-    /// forwarded-headers setup clears KnownProxies, <see cref="Microsoft.AspNetCore.Http.ConnectionInfo.RemoteIpAddress"/>
-    /// is derived from the client-controlled left-most X-Forwarded-For entry, so it is only a fallback.
-    /// Either source is normalized from IPv4-mapped IPv6 form (e.g. <c>::ffff:1.2.3.4</c>, which
-    /// dual-stack sockets produce for IPv4 peers) down to plain IPv4, so audit rows are consistent
-    /// regardless of which source supplied the value. Kept self-contained (no dependency on the
-    /// auth host's ClientIpResolver) — this library must not depend on any host project.
+    /// Resolves the client IP for the audit trail. Uses <see cref="TelegramOidcOptions.ClientIpResolver"/>
+    /// when the host supplied one, otherwise the framework's RemoteIpAddress. The result is normalized
+    /// from IPv4-mapped IPv6 form either way, so audit rows are consistent regardless of the source.
+    /// No request header is trusted by default: without a proxy that overwrites it, a header is
+    /// attacker-controlled.
     /// </summary>
-    private static string? ResolveClientIp(HttpContext http)
+    private static string? ResolveClientIp(HttpContext http, TelegramOidcOptions options)
     {
-        if (http.Request.Headers.TryGetValue("X-Real-IP", out Microsoft.Extensions.Primitives.StringValues realIp))
+        string? raw = options.ClientIpResolver is not null
+            ? options.ClientIpResolver(http)
+            : http.Connection.RemoteIpAddress?.ToString();
+
+        if (string.IsNullOrWhiteSpace(raw))
         {
-            string value = realIp.ToString().Trim();
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return NormalizeIp(value);
-            }
+            return null;
         }
 
-        string? remoteIp = http.Connection.RemoteIpAddress?.ToString();
-        return remoteIp is null ? null : NormalizeIp(remoteIp);
+        return NormalizeIp(raw.Trim());
     }
 
     /// <summary>Collapses an IPv4-mapped IPv6 address (<c>::ffff:a.b.c.d</c>) to plain IPv4.</summary>

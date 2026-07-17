@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace Telegram.OpenIdConnect.AspNetCore;
 
 /// <summary>Configuration for <see cref="TelegramOidcExtensions.AddTelegramOidc"/>.</summary>
@@ -38,4 +40,21 @@ public sealed class TelegramOidcOptions
 
     /// <summary>Default landing after sign-in when the challenge carries no (safe) returnUrl.</summary>
     public string DefaultReturnUrl { get; set; } = "/";
+
+    /// <summary>
+    /// Resolves the client IP recorded in the audit trail. Default (<c>null</c>):
+    /// <see cref="Microsoft.AspNetCore.Http.ConnectionInfo.RemoteIpAddress"/> — the framework's own
+    /// notion of the caller, which reflects whatever forwarded-headers middleware the host has
+    /// configured (none configured -> the socket peer).
+    /// <para>
+    /// Supply a resolver to read a forwarded header instead — but ONLY when a reverse proxy in front
+    /// of this app OVERWRITES that header unconditionally. Without such a proxy the header is
+    /// attacker-controlled: any client could stamp an arbitrary IP into your audit trail.
+    /// </para>
+    /// <para>
+    /// Whatever the resolver returns is normalized from IPv4-mapped IPv6 form
+    /// (<c>::ffff:1.2.3.4</c> -> <c>1.2.3.4</c>) by the library, so hosts need not handle that.
+    /// </para>
+    /// </summary>
+    public Func<HttpContext, string?>? ClientIpResolver { get; set; }
 }
