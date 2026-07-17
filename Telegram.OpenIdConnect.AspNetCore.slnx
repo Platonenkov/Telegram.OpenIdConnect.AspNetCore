@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Telegram.OpenIdConnect.AspNetCore/Telegram.OpenIdConnect.AspNetCore.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Telegram.OpenIdConnect.AspNetCore.Tests/Telegram.OpenIdConnect.AspNetCore.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Telegram.OpenIdConnect.AspNetCore</PackageId>
+    <RootNamespace>Telegram.OpenIdConnect.AspNetCore</RootNamespace>
+    <Description>Telegram OpenID Connect sign-in for ASP.NET Core. Wires cookie authentication and the authorization-code + PKCE flow against oauth.telegram.org, and hands the host two hooks: a gate that decides who may sign in and with which claims, and an optional audit sink. Works around Telegram's 256-char state limit and its unsolicited gzip responses. Server-side only: Telegram does not support public OIDC clients.</Description>
+    <PackageTags>telegram;oidc;openid;openidconnect;authentication;auth;login;aspnetcore</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The only real dependency: this one is NOT part of the ASP.NET Core shared framework.
+         Microsoft.Extensions.Options and Microsoft.Extensions.Logging.Abstractions are, so they
+         are intentionally not referenced here. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Telegram.OpenIdConnect.AspNetCore.Tests" />
+  </ItemGroup>
+
+</Project>
