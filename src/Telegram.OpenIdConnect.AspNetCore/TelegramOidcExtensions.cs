@@ -147,7 +147,12 @@ public static class TelegramOidcExtensions
         }
 
         ITelegramSignInGate gate = http.RequestServices.GetRequiredService<ITelegramSignInGate>();
-        TelegramSignInDecision decision = await gate.DecideAsync(telegramUserId, http.RequestAborted).ConfigureAwait(false);
+        // The identity overload: id stays the authorization key, while username/display name ride along
+        // for hosts that must reconcile a pending @username invite with a real id. Gates that only
+        // implement the id-only overload get the interface's default, which forwards to it unchanged.
+        TelegramSignInDecision decision = await gate
+            .DecideAsync(new TelegramSignInIdentity(telegramUserId, username, displayName), http.RequestAborted)
+            .ConfigureAwait(false);
 
         if (!decision.Allowed)
         {

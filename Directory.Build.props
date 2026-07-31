@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <!-- Single source of truth for the package version. publish.yml reads this file. -->
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Label="Package metadata">
