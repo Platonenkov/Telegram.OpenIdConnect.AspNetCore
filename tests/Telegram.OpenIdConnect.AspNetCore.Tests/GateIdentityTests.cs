@@ -9,7 +9,7 @@ namespace Telegram.OpenIdConnect.AspNetCore.Tests;
 /// </summary>
 public sealed class GateIdentityTests
 {
-    private const long AllowedId = 335615025L;
+    private const long AllowedId = 1000000001L;
 
     /// <summary>Records what the library passed, so the test can assert on the whole identity.</summary>
     private sealed class CapturingGate : ITelegramSignInGate
@@ -48,12 +48,12 @@ public sealed class GateIdentityTests
         using TelegramOidcTestHost host = new(gate, sink);
 
         using HttpResponseMessage response = await host.SignInAsync(
-            AllowedId.ToString(), username: "platonenkov", displayName: "Aleksandr");
+            AllowedId.ToString(), username: "invited_operator", displayName: "Invited Operator");
 
         Assert.NotNull(gate.Seen);
         Assert.Equal(AllowedId, gate.Seen!.TelegramUserId);
-        Assert.Equal("platonenkov", gate.Seen.Username);
-        Assert.Equal("Aleksandr", gate.Seen.DisplayName);
+        Assert.Equal("invited_operator", gate.Seen.Username);
+        Assert.Equal("Invited Operator", gate.Seen.DisplayName);
         Assert.Contains(response.Headers.GetValues("Set-Cookie"), c => c.Contains("TelegramCookie", StringComparison.Ordinal));
     }
 
@@ -65,7 +65,7 @@ public sealed class GateIdentityTests
         using TelegramOidcTestHost host = new(gate, sink);
 
         using HttpResponseMessage response = await host.SignInAsync(
-            AllowedId.ToString(), username: "platonenkov", displayName: "Aleksandr");
+            AllowedId.ToString(), username: "invited_operator", displayName: "Invited Operator");
 
         Assert.Equal(AllowedId, gate.Seen);
         Assert.Contains(response.Headers.GetValues("Set-Cookie"), c => c.Contains("TelegramCookie", StringComparison.Ordinal));

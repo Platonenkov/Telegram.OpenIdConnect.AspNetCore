@@ -11,7 +11,7 @@ namespace Telegram.OpenIdConnect.AspNetCore.Tests;
 /// </summary>
 public sealed class ClientIpResolverTests
 {
-    private const long AllowedId = 335615025L;
+    private const long AllowedId = 1000000001L;
 
     /// <summary>
     /// Asserts the POSITIVE: the audited IP is the connection's, not the header's. Asserting merely

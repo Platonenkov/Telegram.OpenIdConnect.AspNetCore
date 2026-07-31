@@ -154,7 +154,7 @@ app.Run();
 
 sealed class StaffGate : ITelegramSignInGate
 {
-    private static readonly HashSet<long> Staff = [335615025L, 578547102L];
+    private static readonly HashSet<long> Staff = [1000000001L, 1000000002L];
 
     public ValueTask<TelegramSignInDecision> DecideAsync(long telegramUserId, CancellationToken ct) =>
         ValueTask.FromResult(Staff.Contains(telegramUserId)
