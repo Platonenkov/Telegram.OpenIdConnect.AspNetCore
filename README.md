@@ -182,11 +182,17 @@ public sealed class MyGate : ITelegramSignInGate
 }
 ```
 
-`DecideAsync` is called on every successful token validation, keyed on the Telegram Bot-API user
-id (see [Gotchas](#gotchas) for why that matters). The returned `TelegramSignInDecision` carries
-two things: `Allowed` (false rejects the sign-in outright) and `Claims` (attached to the resulting
-principal verbatim — the library never inspects or filters them). `new TelegramSignInDecision(true)`
-with no claims is also valid; you get a plain authenticated user with no roles.
+A gate is called on every successful token validation, keyed on the Telegram Bot-API user id (see
+[Gotchas](#gotchas) for why that matters). Since 1.1.0 the library calls the
+[identity overload](#matching-a-pending-username-invite-110), which by default forwards to the
+id-only one above — so a gate like this keeps working untouched. Note the consequence if you
+implement BOTH: the id-only method is then dead code as far as the library is concerned, because
+the overload it actually calls no longer forwards to it.
+
+The returned `TelegramSignInDecision` carries two things: `Allowed` (false rejects the sign-in
+outright) and `Claims` (attached to the resulting principal verbatim — the library never inspects
+or filters them). `new TelegramSignInDecision(true)` with no claims is also valid; you get a plain
+authenticated user with no roles.
 
 A database-backed gate is the same interface with your own store behind it — here with EF Core,
 mapping per-user roles from a table:
