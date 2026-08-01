@@ -154,7 +154,7 @@ app.Run();
 
 sealed class StaffGate : ITelegramSignInGate
 {
-    private static readonly HashSet<long> Staff = [335615025L, 578547102L];
+    private static readonly HashSet<long> Staff = [1000000001L, 1000000002L];
 
     public ValueTask<TelegramSignInDecision> DecideAsync(long telegramUserId, CancellationToken ct) =>
         ValueTask.FromResult(Staff.Contains(telegramUserId)
@@ -214,6 +214,45 @@ public sealed class DbGate : ITelegramSignInGate
     }
 }
 ```
+
+### Matching a pending `@username` invite (1.1.0)
+
+`DecideAsync(long, …)` answers "may this id in?", which is all a gate needs once the person has
+signed in before. It is not enough the *first* time, when the invite was written before anyone
+could know their numeric id:
+
+```csharp
+public sealed class InviteGate : ITelegramSignInGate
+{
+    // Never called by the library once the overload below exists; keep it for source compatibility.
+    public ValueTask<TelegramSignInDecision> DecideAsync(long telegramUserId, CancellationToken ct) =>
+        DecideAsync(new TelegramSignInIdentity(telegramUserId), ct);
+
+    public async ValueTask<TelegramSignInDecision> DecideAsync(TelegramSignInIdentity identity, CancellationToken ct)
+    {
+        // Known id wins. Only if nothing matches, fall back to a pending invite by username and
+        // back-fill the id, so the next sign-in resolves by id alone.
+        AppUser? user = await _db.Users.FirstOrDefaultAsync(u => u.TelegramId == identity.TelegramUserId, ct);
+        if (user is null && identity.Username is { Length: > 0 } name)
+        {
+            user = await _db.Users.FirstOrDefaultAsync(u => u.TelegramId == null && u.Username == name, ct);
+            if (user is not null)
+            {
+                user.TelegramId = identity.TelegramUserId;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+        return user is null ? new(false) : new(true, [new Claim(ClaimTypes.Role, user.Role)]);
+    }
+}
+```
+
+**A username is not an identity.** Its owner can change or release it and Telegram may hand it to
+someone else, so treat it only as a one-time bridge to a real id — never as the standing key for
+access. `TelegramUserId` is the field to authorize on.
+
+The identity overload has a default implementation that forwards to the id-only one, so gates
+written against 1.0.0 keep compiling and behave exactly as before.
 
 Register it scoped (`AddScoped<ITelegramSignInGate, DbGate>()`) so it can take a scoped `DbContext`.
 Letting everyone in (`new TelegramSignInDecision(true)`) is also a legitimate gate — e.g. for a

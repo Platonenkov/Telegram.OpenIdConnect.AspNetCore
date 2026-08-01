@@ -11,7 +11,7 @@ namespace Telegram.OpenIdConnect.AspNetCore.Tests;
 /// </summary>
 public sealed class SignInDecisionTests
 {
-    private const long AllowedId = 335615025L;
+    private const long AllowedId = 1000000001L;
 
     private sealed class ClaimsGate : ITelegramSignInGate
     {

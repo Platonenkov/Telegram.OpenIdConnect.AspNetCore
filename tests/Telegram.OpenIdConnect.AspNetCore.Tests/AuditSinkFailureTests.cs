@@ -9,7 +9,7 @@ namespace Telegram.OpenIdConnect.AspNetCore.Tests;
 /// </summary>
 public sealed class AuditSinkFailureTests
 {
-    private const long AllowedId = 335615025L;
+    private const long AllowedId = 1000000001L;
 
     private sealed class ThrowingSink : ITelegramSignInAuditSink
     {
