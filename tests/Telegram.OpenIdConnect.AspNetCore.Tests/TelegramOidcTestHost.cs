@@ -45,6 +45,10 @@ public sealed class TelegramOidcTestHost : IDisposable
     private const string SigningKid = "oidc-test-kid";
     private const string AccessToken = "test-access-token";
 
+    // What a minted token carries unless a test overrides it — the values every pre-1.1.0 test saw.
+    public const string DefaultUsername = "test_operator";
+    public const string DefaultDisplayName = "Test Operator";
+
     private readonly ECDsa _signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
     private readonly IHost _host;
     private readonly TestServer _server;
@@ -169,10 +173,15 @@ public sealed class TelegramOidcTestHost : IDisposable
     /// Drives challenge -> Telegram -> callback and returns the callback response.
     /// A null <paramref name="idClaim"/> mints a token with NO id claim (the fail-closed case).
     /// </summary>
+    /// <remarks><paramref name="username"/> / <paramref name="displayName"/> default to the values the
+    /// minted token has always carried, so tests that do not care are unaffected; pass them to assert on
+    /// what reaches the gate's identity overload.</remarks>
     public async Task<HttpResponseMessage> SignInAsync(
         string? idClaim,
         string subClaim = "telegram-oidc-subject",
-        Dictionary<string, string>? extraHeaders = null)
+        Dictionary<string, string>? extraHeaders = null,
+        string? username = DefaultUsername,
+        string? displayName = DefaultDisplayName)
     {
         HttpClient client = CreateClient(allowAutoRedirect: false);
 
@@ -189,7 +198,7 @@ public sealed class TelegramOidcTestHost : IDisposable
         string state = query["state"].ToString();
         string nonce = query["nonce"].ToString();
 
-        _stubIdToken = MintIdToken(subClaim, idClaim, nonce);
+        _stubIdToken = MintIdToken(subClaim, idClaim, nonce, username, displayName);
 
         using HttpRequestMessage callbackRequest = new(
             HttpMethod.Get,
@@ -206,7 +215,9 @@ public sealed class TelegramOidcTestHost : IDisposable
     /// </summary>
     public async Task<ClaimsPrincipal> SignInAndReadPrincipalAsync(
         string idClaim,
-        string subClaim = "telegram-oidc-subject")
+        string subClaim = "telegram-oidc-subject",
+        string? username = DefaultUsername,
+        string? displayName = DefaultDisplayName)
     {
         HttpClient client = CreateClient(allowAutoRedirect: false);
 
@@ -222,7 +233,7 @@ public sealed class TelegramOidcTestHost : IDisposable
         string state = query["state"].ToString();
         string nonce = query["nonce"].ToString();
 
-        _stubIdToken = MintIdToken(subClaim, idClaim, nonce);
+        _stubIdToken = MintIdToken(subClaim, idClaim, nonce, username, displayName);
 
         using HttpRequestMessage callbackRequest = new(
             HttpMethod.Get,
@@ -290,7 +301,8 @@ public sealed class TelegramOidcTestHost : IDisposable
     /// separate Bot-API user id the sign-in gate actually keys on. Pass <c>id: null</c> to mint a
     /// token missing the <c>id</c> claim entirely (exercises the fail-closed path).
     /// </summary>
-    private string MintIdToken(string sub, string? id, string nonce)
+    private string MintIdToken(string sub, string? id, string nonce,
+        string? username = DefaultUsername, string? displayName = DefaultDisplayName)
     {
         DateTime now = DateTime.UtcNow;
         Dictionary<string, object> claims = new()
@@ -298,9 +310,10 @@ public sealed class TelegramOidcTestHost : IDisposable
             ["sub"] = sub,
             ["nonce"] = nonce,
             ["at_hash"] = ComputeAtHash(AccessToken),
-            ["name"] = "Test Operator",
-            ["preferred_username"] = "test_operator",
         };
+        // Omitted entirely when null, so a token WITHOUT these claims can be minted too.
+        if (displayName is not null) claims["name"] = displayName;
+        if (username is not null) claims["preferred_username"] = username;
         if (id is not null)
         {
             claims["id"] = long.Parse(id, CultureInfo.InvariantCulture);

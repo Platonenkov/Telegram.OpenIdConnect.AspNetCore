@@ -25,7 +25,7 @@ public sealed class GateFailureTests
         FakeAuditSink sink = new();
         using TelegramOidcTestHost host = new(new ThrowingGate(), sink);
 
-        using HttpResponseMessage response = await host.SignInAsync("335615025");
+        using HttpResponseMessage response = await host.SignInAsync("1000000001");
 
         Assert.False(response.Headers.Contains("Set-Cookie") &&
             response.Headers.GetValues("Set-Cookie").Any(c => c.Contains("TelegramCookie", StringComparison.Ordinal)));
