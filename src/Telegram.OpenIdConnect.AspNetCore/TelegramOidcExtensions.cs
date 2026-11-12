@@ -156,8 +156,16 @@ public static class TelegramOidcExtensions
 
         if (!decision.Allowed)
         {
-            logger.LogWarning("Denied sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
-                telegramUserId, username, clientIp);
+            if (options.LogPersonalData)
+            {
+                logger.LogWarning("Denied sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
+                    telegramUserId, username, clientIp);
+            }
+            else
+            {
+                logger.LogWarning("Denied Telegram sign-in (rejected by gate).");
+            }
+
             await RecordAsync(http, new TelegramSignInAuditEvent(
                 TelegramSignInOutcome.Denied, telegramUserId, username, displayName, pictureUrl, clientIp, "rejected by gate")).ConfigureAwait(false);
             ctx.Response.Redirect(options.AccessDeniedPath);
@@ -177,8 +185,15 @@ public static class TelegramOidcExtensions
 
         identity.AddClaim(new Claim("telegram_user_id", telegramUserId.ToString()));
 
-        logger.LogInformation("Sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
-            telegramUserId, username, clientIp);
+        if (options.LogPersonalData)
+        {
+            logger.LogInformation("Sign-in for Telegram id {TelegramUserId} (@{Username}) from {ClientIp}.",
+                telegramUserId, username, clientIp);
+        }
+        else
+        {
+            logger.LogInformation("Telegram sign-in succeeded.");
+        }
         await RecordAsync(http, new TelegramSignInAuditEvent(
             TelegramSignInOutcome.Success, telegramUserId, username, displayName, pictureUrl, clientIp, null)).ConfigureAwait(false);
     }

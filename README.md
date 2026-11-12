@@ -333,9 +333,14 @@ plus the callback path itself is intercepted by the OIDC handler:
 | `POST` | `{CallbackPath}/logout` | Signs the local cookie out. Requires a valid antiforgery token; otherwise `400`. |
 | `GET` | `{CallbackPath}` | The OIDC authorization-code callback, handled internally by the OpenID Connect handler — not something you call directly. |
 
-`returnUrl` is only honored when it is a local path (a single leading `/`); anything else —
-absolute URLs, protocol-relative `//`, backslash tricks — falls back to `DefaultReturnUrl`, so the
-challenge endpoint cannot be used as an open redirector.
+`returnUrl` is only honored when it is a plain local path: it starts with a single `/`, its path
+part has no `//`, and it contains no `\` and no control character (C0, DEL or C1). The same rules
+are applied to every percent-decoded form of the value, so `%2F%2F`, `%5C`, `%09` and their
+double-encoded variants are refused too. Anything else (absolute URLs, protocol-relative `//`,
+backslash or tab/newline tricks) falls back to `DefaultReturnUrl`, so the challenge endpoint
+cannot be used as an open redirector. Before 1.1.1 only the first two characters were checked, and
+`returnUrl=/%09/evil.test` came back in the `Location` header with a raw tab after the first `/`, which
+browsers drop, so they followed it to `//evil.test`; upgrade if you rely on this endpoint.
 
 ## Login page and logout
 
@@ -427,6 +432,7 @@ All properties of `TelegramOidcOptions`, configured via the `AddTelegramOidc(o =
 | `CookieTtlHours` | `12` | Sliding expiration window, in hours, for the sign-in cookie. |
 | `DefaultReturnUrl` | `/` | Landing page after sign-in when the challenge carries no (safe) `returnUrl`. |
 | `ClientIpResolver` | `null` | Resolves the client IP recorded in the audit trail. `null` uses `HttpContext.Connection.RemoteIpAddress`. Supply a resolver only when a reverse proxy in front of you overwrites the forwarded header unconditionally — see Gotchas. |
+| `LogPersonalData` | `false` | When `true`, the sign-in (`Information`) and denied-sign-in (`Warning`) log lines in the `TelegramOidc` category include the Telegram id, username and client IP. Off by default because those are personal data; see Gotchas. The audit sink always gets the full event. |
 
 ## Gotchas
 
@@ -449,6 +455,11 @@ Telegram.
   `ClientIpResolver` reads `RemoteIpAddress` and trusts no header. Only supply a header-reading
   resolver when a reverse proxy in front of you sets that header unconditionally — otherwise it's
   attacker-controlled and any client can stamp an arbitrary IP into your audit trail.
+- **Identifiers stay out of your logs unless you ask.** The Telegram id, `@username` and client IP
+  are personal data, and application logs are typically kept longer and shipped further than an
+  audit table. Since 1.1.1 the `TelegramOidc` log lines say only that a sign-in succeeded or was
+  denied; the identifiers go to your `ITelegramSignInAuditSink`. Set `LogPersonalData = true` to
+  get the 1.1.0 behavior back, for example in development.
 - **Unconfigured is not broken.** Leave `ClientId`/`ClientSecret` empty and the app still starts
   and stays healthy; only `{CallbackPath}/challenge` returns `503`. Handy when sign-in is
   optional in some environments.
