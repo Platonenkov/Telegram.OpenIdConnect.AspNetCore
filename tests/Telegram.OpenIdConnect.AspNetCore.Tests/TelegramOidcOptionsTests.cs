@@ -24,5 +24,6 @@ public sealed class TelegramOidcOptionsTests
         Assert.Equal(12, o.CookieTtlHours);
         Assert.Equal("/", o.DefaultReturnUrl);
         Assert.Null(o.ClientIpResolver);
+        Assert.False(o.LogPersonalData);
     }
 }
