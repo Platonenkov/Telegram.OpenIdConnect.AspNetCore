@@ -7,7 +7,12 @@
 #
 # The flip side of --skip-duplicate is silence: forget to bump <Version> and the run goes green
 # having published nothing. The "Check whether this version is new" step turns that into a warning.
-name: Publish
+#
+# nuget.org uses Trusted Publishing: no long-lived API key is stored in the repository. NuGet/login
+# exchanges the job's GitHub OIDC token for a short-lived key (valid about an hour). The policy on
+# nuget.org is bound to this repository AND to this file name, so renaming this file breaks
+# publishing until the policy is updated to match.
+name: NuGet release
 
 on:
   push:
@@ -21,6 +26,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Required by NuGet/login to request the GitHub OIDC token for Trusted Publishing.
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -67,14 +74,17 @@ jobs:
       - name: Pack
         run: dotnet pack src/Telegram.OpenIdConnect.AspNetCore -c Release --no-build -o "${{ runner.temp }}/nupkgs"
 
+      - name: NuGet login (Trusted Publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          # nuget.org profile name of the package owner, not an email address. Not a secret.
+          user: APlatonenkov
+
       - name: Push to nuget.org (skip duplicates)
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
-          if [ -z "$NUGET_API_KEY" ]; then
-            echo "::error::NUGET_API_KEY secret is not set. Add it in the repository settings."
-            exit 1
-          fi
           dotnet nuget push "${{ runner.temp }}/nupkgs/*.nupkg" \
             --source "https://api.nuget.org/v3/index.json" \
             --api-key "$NUGET_API_KEY" \
