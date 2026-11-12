@@ -62,7 +62,8 @@ public sealed class TelegramOidcTestHost : IDisposable
     public TelegramOidcTestHost(
         ITelegramSignInGate gate,
         ITelegramSignInAuditSink? sink = null,
-        Action<TelegramOidcOptions>? configure = null)
+        Action<TelegramOidcOptions>? configure = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         void EffectiveConfigure(TelegramOidcOptions options)
         {
@@ -101,6 +102,7 @@ public sealed class TelegramOidcTestHost : IDisposable
                     }
 
                     services.AddTelegramOidc(EffectiveConfigure);
+                    configureServices?.Invoke(services);
 
                     // Pin discovery to the stub and drop MetadataAddress, so the middleware NEVER
                     // reaches out to real Telegram (which would return its own signing keys and
@@ -175,17 +177,19 @@ public sealed class TelegramOidcTestHost : IDisposable
     /// </summary>
     /// <remarks><paramref name="username"/> / <paramref name="displayName"/> default to the values the
     /// minted token has always carried, so tests that do not care are unaffected; pass them to assert on
-    /// what reaches the gate's identity overload.</remarks>
+    /// what reaches the gate's identity overload. <paramref name="encodedReturnUrl"/> goes into the
+    /// challenge query string verbatim, so callers control the exact percent-encoding on the wire.</remarks>
     public async Task<HttpResponseMessage> SignInAsync(
         string? idClaim,
         string subClaim = "telegram-oidc-subject",
         Dictionary<string, string>? extraHeaders = null,
         string? username = DefaultUsername,
-        string? displayName = DefaultDisplayName)
+        string? displayName = DefaultDisplayName,
+        string encodedReturnUrl = "/")
     {
         HttpClient client = CreateClient(allowAutoRedirect: false);
 
-        using HttpRequestMessage challengeRequest = new(HttpMethod.Get, "/signin-telegram/challenge?returnUrl=/");
+        using HttpRequestMessage challengeRequest = new(HttpMethod.Get, "/signin-telegram/challenge?returnUrl=" + encodedReturnUrl);
         ApplyHeaders(challengeRequest, extraHeaders);
         using HttpResponseMessage challenge = await client.SendAsync(challengeRequest).ConfigureAwait(false);
         if (challenge.StatusCode != HttpStatusCode.Redirect || challenge.Headers.Location is null)
