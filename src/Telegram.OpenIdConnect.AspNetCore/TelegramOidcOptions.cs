@@ -54,4 +54,13 @@ public sealed class TelegramOidcOptions
     /// </para>
     /// </summary>
     public Func<HttpContext, string?>? ClientIpResolver { get; set; }
+
+    /// <summary>
+    /// When <c>true</c>, the sign-in and denied-sign-in log lines (category <c>TelegramOidc</c>)
+    /// include the Telegram id, username and client IP. Default <c>false</c>: those lines carry no
+    /// identifiers, because the id, username and IP are personal data and application logs are
+    /// usually retained and shipped more widely than an audit store. The
+    /// <see cref="ITelegramSignInAuditSink"/> always receives the full event regardless of this flag.
+    /// </summary>
+    public bool LogPersonalData { get; set; }
 }
